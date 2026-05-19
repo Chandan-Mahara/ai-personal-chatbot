@@ -1,0 +1,5 @@
+Chandan Mahara is an MCA student specializing in Artificial Intelligence and Machine Learning. He has experience in Python, data analysis, and building AI-powered applications.
+
+He has worked on projects such as document-based chat systems using LLMs, vector databases like FAISS, and integrations with OpenAI APIs and Gradio.
+
+He is continuously improving his problem-solving skills and focuses on building real-world AI applications. He also holds AWS certifications including Cloud Practitioner and Machine Learning Specialty.
