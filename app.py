@@ -1,205 +1,78 @@
-# -------------------- IMPORTS --------------------
-import os
-import json
-from dotenv import load_dotenv
-from openai import OpenAI
-from pypdf import PdfReader
 import gradio as gr
-from pydantic import BaseModel
+from agent import chat
 
 
-# -------------------- SETUP --------------------
-load_dotenv()
-client = OpenAI()
-
-
-# -------------------- LOAD FILES --------------------
-if not os.path.exists("me/linkedin_profile.pdf"):
-    raise FileNotFoundError("LinkedIn PDF not found")
-
-if not os.path.exists("me/summary.txt"):
-    raise FileNotFoundError("Summary file not found")
-
-
-# Read LinkedIn PDF
-reader = PdfReader("me/linkedin_profile.pdf")
-linkedin = ""
-
-for page in reader.pages:
-    text = page.extract_text()
-    if text:
-        linkedin += text
-
-
-# Read summary
-with open("me/summary.txt", "r", encoding="utf-8") as f:
-    summary = f.read()
-
-
-# -------------------- CONFIG --------------------
-name = "Chandan Mahara"
-
-
-# -------------------- SYSTEM PROMPT --------------------
-system_prompt = f"""
-You are acting as {name}. You answer questions on {name}'s website.
-
-Be professional, engaging, and accurate.
-
-If you don't know something, say so.
-
-## Summary:
-{summary}
-
-## LinkedIn:
-{linkedin}
-"""
-
-
-# -------------------- EVALUATION MODEL --------------------
-class Evaluation(BaseModel):
-    is_acceptable: bool
-    feedback: str
-
-
-# -------------------- EVALUATOR PROMPT --------------------
-evaluator_system_prompt = f"""
-You are an evaluator judging response quality.
-
-Check:
-- Accuracy
-- Professional tone
-- Relevance
-
-Return ONLY JSON:
-{{
-  "is_acceptable": true/false,
-  "feedback": "reason"
-}}
-
-## Summary:
-{summary}
-
-## LinkedIn:
-{linkedin}
-"""
-
-
-def evaluator_user_prompt(reply, message, history):
-    return f"""
-Conversation:
-{history}
-
-User Message:
-{message}
-
-Assistant Reply:
-{reply}
-"""
-
-
-# -------------------- EVALUATE --------------------
-def evaluate(reply, message, history):
+# -------------------- SAFE CHAT --------------------
+def safe_chat(message, history):
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": evaluator_system_prompt},
-                {"role": "user", "content": evaluator_user_prompt(reply, message, history)}
-            ],
-            response_format={"type": "json_object"}
-        )
+        result = chat(message, history)
 
-        result = response.choices[0].message.content
-        parsed = json.loads(result)
+        # Ensure string output
+        if not isinstance(result, str):
+            result = str(result)
 
-        return Evaluation(**parsed)
+        return result
 
     except Exception as e:
-        return Evaluation(
-            is_acceptable=False,
-            feedback=f"Evaluation error: {str(e)}"
-        )
+        print("[ERROR]", e)
+        return "❌ Something went wrong. Check terminal."
 
 
-# -------------------- HELPER: NORMALIZE HISTORY --------------------
-def format_history(history):
-    messages = []
+# -------------------- UI --------------------
+with gr.Blocks(title="AI Personal Chatbot") as demo:
 
-    for item in history:
-        if isinstance(item, dict):
-            # Already correct format
-            messages.append(item)
+    gr.Markdown("""
+    # 🤖 AI Personal Chatbot
+    Ask anything about Chandan Mahara's professional background.
+    """)
 
-        elif isinstance(item, (list, tuple)) and len(item) == 2:
-            user_msg, bot_msg = item
-            messages.append({"role": "user", "content": user_msg})
-            messages.append({"role": "assistant", "content": bot_msg})
+    # Removed `type="messages"` - Gradio will auto-detect the dictionary format
+    chatbot = gr.Chatbot()
 
-    return messages
-
-
-# -------------------- RETRY --------------------
-def rerun(reply, message, history, feedback):
-
-    improved_prompt = system_prompt + f"""
-Previous response was rejected.
-
-Your response:
-{reply}
-
-Feedback:
-{feedback}
-
-Give a better answer.
-"""
-
-    messages = [{"role": "system", "content": improved_prompt}]
-    messages += format_history(history)
-    messages.append({"role": "user", "content": message})
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages
+    msg = gr.Textbox(
+        placeholder="Ask a question...",
+        show_label=False
     )
 
-    return response.choices[0].message.content
+    clear = gr.Button("Clear Chat")
 
+    # -------------------- USER INPUT --------------------
+    def user_input(user_message, history):
+        history = history or []
+        # Append as a standard message dictionary
+        history.append({"role": "user", "content": str(user_message)})
+        return "", history
 
-# -------------------- CHAT FUNCTION --------------------
-def chat(message, history):
+    # -------------------- BOT RESPONSE --------------------
+    def bot_response(history):
+        try:
+            # The last item is the user's message dictionary
+            user_message = history[-1]["content"]
 
-    if "patent" in message.lower():
-        system = system_prompt + "\nRespond ONLY in Pig Latin."
-    else:
-        system = system_prompt
+            # Exclude the latest user message to form the history for the LLM
+            formatted_history = history[:-1]
 
-    messages = [{"role": "system", "content": system}]
-    messages += format_history(history)
-    messages.append({"role": "user", "content": message})
+            reply = safe_chat(user_message, formatted_history)
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages
+            # Append the assistant's reply as a dictionary
+            history.append({"role": "assistant", "content": str(reply)})
+
+            return history
+
+        except Exception as e:
+            print("[BOT ERROR]", e)
+            history.append({"role": "assistant", "content": "❌ Internal error"})
+            return history
+
+    # -------------------- EVENTS --------------------
+    msg.submit(user_input, [msg, chatbot], [msg, chatbot], queue=False).then(
+        bot_response, chatbot, chatbot
     )
 
-    reply = response.choices[0].message.content
-
-    evaluation = evaluate(reply, message, history)
-
-    if evaluation.is_acceptable:
-        print("✅ Passed evaluation")
-        return reply
-    else:
-        print("❌ Failed:", evaluation.feedback)
-        return rerun(reply, message, history, evaluation.feedback)
+    clear.click(lambda: [], None, chatbot, queue=False)
 
 
-# -------------------- GRADIO UI --------------------
-gr.ChatInterface(
-    fn=chat,
-    title="Chandan Mahara - AI Assistant"
-).launch()
-
-
-
+# -------------------- RUN --------------------
+if __name__ == "__main__":
+    print("🚀 Starting app...")
+    demo.launch(debug=True)
