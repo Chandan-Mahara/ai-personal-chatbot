@@ -1,175 +1,71 @@
-# 🤖 AI Personal Chatbot with Self-Evaluation (LLM-as-a-Judge)
+# 🤖 AI Personal Chatbot with Self-Evaluation & Lead Capture
 
 ## 📌 Overview
 
-This project is an AI-powered personal chatbot that represents an individual professionally by answering questions based on their LinkedIn profile and summary.
+This project is an AI-powered personal chatbot that represents an individual professionally by answering questions based on their LinkedIn profile and summary. 
 
-What makes this system unique is the integration of a **self-evaluation mechanism**, where a second Large Language Model (LLM) evaluates the chatbot’s response before delivering it. If the response is not acceptable, the system automatically retries and improves it.
+What makes this system unique is its advanced agentic architecture. It features a **self-evaluation mechanism (LLM-as-a-Judge)** that critically reviews its own responses before delivering them, and an **Intelligent Tool-Calling system** that captures user leads and unanswerable questions, instantly routing them to the project owner via mobile notifications.
 
 ---
 
 ## 🚀 Key Features
 
-* 🧠 **Persona-based Chatbot**
-
-  * Responds as a specific individual using LinkedIn + summary data
-
-* 📄 **PDF Processing**
-
-  * Extracts content from LinkedIn profile using `pypdf`
-
-* 🤖 **LLM Response Generation**
-
-  * Uses OpenAI model to generate human-like responses
-
+* 🧠 **Persona-Based RAG System**
+  * Responds professionally as a specific individual using parsed LinkedIn and summary data.
 * 🧪 **LLM-as-a-Judge (Evaluation System)**
-
-  * A second LLM evaluates:
-
-    * Accuracy
-    * Professional tone
-    * Relevance
-
-* 🔁 **Automatic Retry Mechanism**
-
-  * If response fails evaluation, it is regenerated with feedback
-
+  * A secondary LLM agent evaluates the generated response for accuracy, professional tone, and relevance.
+* 🔁 **Automatic Self-Correction**
+  * If a response fails the judge's evaluation, it is automatically regenerated with specific feedback before the user ever sees it.
+* 🛠️ **Intelligent Tool Calling (OpenAI Functions)**
+  * Automatically detects when a user wants to collaborate, hire, or asks an out-of-bounds question, seamlessly triggering background Python functions.
+* 📱 **Real-Time Mobile Notifications**
+  * Integrates the Pushover API to instantly ping the repository owner's phone when a new lead provides their email or asks a question the bot couldn't answer.
+* 📄 **Dynamic Document Processing**
+  * Extracts text from uploaded PDF profiles using `pypdf`.
 * 🌐 **Interactive UI**
-
-  * Built using Gradio for real-time chat interface
+  * Built using Gradio for a seamless, real-time chat interface.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture Flow
 
-User Input
+User Input 
 ⬇
-LLM (Response Generator)
+LLM (Response Generator / Tool Caller) 
+ ├── 🛠️ If Lead/Unknown → Trigger Pushover Notification 
+ └── 💬 If Standard Question → Generate Text 
 ⬇
-LLM (Evaluator / Judge)
+LLM (Evaluator / Judge) 
 ⬇
-✔ Accept → Show response
-❌ Reject → Retry with feedback
+✔ Accept → Show response 
+❌ Reject → Retry with feedback loop
 
 ---
 
 ## 🛠️ Tech Stack
 
-* Python
-* OpenAI API
-* Gradio
-* PyPDF
-* Pydantic
-* dotenv
+* **Language:** Python
+* **AI/ML:** OpenAI API (`gpt-4o-mini`), Pydantic
+* **Web UI:** Gradio
+* **Integrations:** Pushover API, `requests`
+* **Data Processing:** PyPDF
+* **Environment:** `python-dotenv`
 
 ---
 
 ## 📂 Project Structure
 
-```
+```text
 AI-Personal-Chatbot/
-│── app.py
+│── app.py                 # Gradio UI & App Entry Point
+│── agent.py               # Main LLM routing & Evaluator Judge
+│── tools.py               # OpenAI Tool definitions & Pushover integration
+│── prompts.py             # System prompts & behavioral guidelines
+│── config.py              # Environment & API Key management
+│── data_loader.py         # PDF parsing & text extraction
 │── me/
 │   ├── linkedin_profile.pdf
 │   ├── summary.txt
-│── .env
+│── .env                   # Secrets (Not committed)
 │── requirements.txt
 │── README.md
-```
-
----
-
-## ⚙️ Setup Instructions
-
-### 1. Clone Repository
-
-```
-git clone <your-repo-url>
-cd AI-Personal-Chatbot
-```
-
-### 2. Create Virtual Environment
-
-```
-python -m venv venv
-venv\Scripts\activate   # Windows
-```
-
-### 3. Install Dependencies
-
-```
-pip install -r requirements.txt
-```
-
-### 4. Add API Key
-
-Create a `.env` file:
-
-```
-OPENAI_API_KEY=your_api_key_here
-```
-
-### 5. Run the Application
-
-```
-python app.py
-```
-
----
-
-## 🌐 Usage
-
-* Open browser at: `http://127.0.0.1:7860`
-* Ask questions about the person
-* System will:
-
-  1. Generate response
-  2. Evaluate response
-  3. Improve if needed
-
----
-
-## 💡 Example
-
-**User:** Do you have experience in machine learning?
-**System:**
-
-* Generates answer
-* Evaluates quality
-* Improves response if needed
-* Returns final polished answer
-
----
-
-## 🧠 Key Concept
-
-This project demonstrates:
-
-> **LLM-as-a-Judge Architecture**
-
-Where:
-
-* One model generates output
-* Another model evaluates it
-* System self-corrects automatically
-
----
-
-## 🔮 Future Improvements
-
-* 🔍 Add FAISS for semantic search (RAG)
-* ⚡ Streaming responses
-* 🧠 Memory optimization
-* 🌍 Deployment (Hugging Face / Render)
-
----
-
-## 👨‍💻 Author
-
-**Chandan Mahara**
-
----
-
-## ⭐ If you like this project
-
-Give it a star on GitHub!
